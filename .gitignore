@@ -1,0 +1,6 @@
+build/
+dist/
+Template.egg-info/
+readmelang.py
+runreadmelang.bat
+*.bat

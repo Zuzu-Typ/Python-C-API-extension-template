@@ -1,6 +1,13 @@
 build/
 dist/
+.vs/
+Py2.7/
+Debug/
 Template.egg-info/
 readmelang.py
 runreadmelang.bat
 *.bat
+PyCet.vcxproj.user
+PyCet.vcxproj
+PyCet.sln
+PyCet.vcxproj.filters

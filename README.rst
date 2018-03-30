@@ -19,5 +19,6 @@ Introduction
 | This template provides a very basic Python extension written in C\.
 | The extension module \"*template*\" contains a function \"*test*\" and a class \"*example\_class*\"\.
 | The \"*example\_class*\" has a single member \"*value*\" \(of type double \=\> float\)\,  and supports a lot of operations\.
+| It also shows how to import a module \(\"math\.pi\" in this case\)\.
 | 
 | *Work in progress*\. 

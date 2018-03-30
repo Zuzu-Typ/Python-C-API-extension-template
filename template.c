@@ -1,7 +1,5 @@
-//#include "C:\Python36\include\Python.h"
 #include <Python.h>
 #include "structmember.h"
-// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #include <stdbool.h>
 
 #define PY3K (PY_VERSION_HEX >= 0x03000000)
@@ -148,18 +146,33 @@ example_class_init(example_class *self, PyObject *args, PyObject *kwargs)
 static PyObject *
 example_class_neg(example_class *obj)
 {
+	/* Returns the negation of <obj> on success, 
+	 * or NULL on failure. This is the 
+	 * equivalent of the Python expression '-obj'.
+	 * (quoted from https://docs.python.org/3/c-api/number.html)
+	 */
 	return pack_example_class(-obj->value);
 }
 
 static PyObject *
 example_class_pos(example_class *obj)
 {
+	/* Returns <obj> on success,
+	 * or NULL on failure. This is the
+	 * equivalent of the Python expression '+obj'.
+	 * (quoted from https://docs.python.org/3/c-api/number.html)
+	 */
 	return pack_example_class(obj->value);
 }
 
 static PyObject *
 example_class_abs(example_class *obj)
 {
+	/* Returns the absolute value of obj, 
+	 * or NULL on failure. This is the 
+	 * equivalent of the Python expression 'abs(obj)'.
+	 * (quoted from https://docs.python.org/3/c-api/number.html)
+	 */
 	return pack_example_class(fabs(obj->value));
 }
 
@@ -167,7 +180,11 @@ example_class_abs(example_class *obj)
 static PyObject *
 example_class_add(PyObject *obj1, PyObject *obj2)
 {
-	// combines __add__ and __radd__!!
+	/* Returns the result of adding obj1 to obj2, 
+	 * or NULL on failure. This is the 
+	 * equivalent of the Python expression 'obj1 + obj2'.
+	 * (quoted from https://docs.python.org/3/c-api/number.html)
+	 */
 	internal_example_class o1, o2;
 	
 	if (unpack_example_class(obj1, &o1) && unpack_example_class(obj2, &o2)) {
@@ -182,6 +199,11 @@ example_class_add(PyObject *obj1, PyObject *obj2)
 static PyObject *
 example_class_sub(PyObject *obj1, PyObject *obj2)
 {
+	/* Returns the result of subtracting obj2 from obj1,
+	 * or NULL on failure. This is the
+	 * equivalent of the Python expression 'obj1 - obj2'.
+	 * (quoted from https://docs.python.org/3/c-api/number.html)
+	 */
 	internal_example_class o1, o2;
 
 	if (unpack_example_class(obj1, &o1) && unpack_example_class(obj2, &o2)) {
@@ -196,6 +218,11 @@ example_class_sub(PyObject *obj1, PyObject *obj2)
 static PyObject *
 example_class_mul(PyObject *obj1, PyObject *obj2)
 {
+	/* Returns the result of multiplying obj1 and obj2,
+	 * or NULL on failure. This is the
+	 * equivalent of the Python expression 'obj1 * obj2'.
+	 * (quoted from https://docs.python.org/3/c-api/number.html)
+	 */
 	internal_example_class o1, o2;
 
 	if (unpack_example_class(obj1, &o1) && unpack_example_class(obj2, &o2)) {
@@ -208,8 +235,13 @@ example_class_mul(PyObject *obj1, PyObject *obj2)
 }
 
 static PyObject *
-example_class_div(PyObject *obj1, PyObject *obj2)
+example_class_truediv(PyObject *obj1, PyObject *obj2)
 {
+	/* Returns the result of dividing obj1 by obj2,
+	 * or NULL on failure. This is the
+	 * equivalent of the Python 3 expression 'obj1 / obj2',
+	 * and the Python 2 expression 'obj1.__truediv__(obj2)'.
+	 */
 	internal_example_class o1, o2;
 
 	if (unpack_example_class(obj1, &o1) && unpack_example_class(obj2, &o2)) {
@@ -224,6 +256,11 @@ example_class_div(PyObject *obj1, PyObject *obj2)
 static PyObject *
 example_class_mod(PyObject *obj1, PyObject *obj2)
 {
+	/* Returns the remainder of dividing obj1 by obj2,
+	 * or NULL on failure. This is the
+	 * equivalent of the Python expression 'obj1 % obj2'.
+	 * (quoted from https://docs.python.org/3/c-api/number.html)
+	 */
 	internal_example_class o1, o2;
 
 	if (unpack_example_class(obj1, &o1) && unpack_example_class(obj2, &o2)) {
@@ -238,6 +275,11 @@ example_class_mod(PyObject *obj1, PyObject *obj2)
 static PyObject *
 example_class_floordiv(PyObject *obj1, PyObject *obj2)
 {
+	/* Returns the floor of obj1 divided by obj2,
+	 * or NULL on failure. This is the
+	 * equivalent of the Python expression 'obj1 // obj2'
+	 * and the Python 2 expression 'obj1 / obj2'.
+	 */
 	internal_example_class o1, o2;
 
 	if (unpack_example_class(obj1, &o1) && unpack_example_class(obj2, &o2)) {
@@ -251,12 +293,23 @@ example_class_floordiv(PyObject *obj1, PyObject *obj2)
 
 static PyObject *
 example_class_divmod(PyObject * obj1, PyObject * obj2) {
+	/* See the built-in function divmod(). 
+	 * Returns NULL on failure. This is the 
+	 * equivalent of the Python expression 'divmod(obj1, obj2)'.
+	 * (quoted from https://docs.python.org/3/c-api/number.html)
+	 */
 	return Py_BuildValue("(OO)", example_class_floordiv(obj1, obj2), example_class_mod(obj1, obj2));
 }
 
 // ternaryfunc
 static PyObject *
 example_class_pow(PyObject * obj1, PyObject * obj2, PyObject * obj3) {
+	/* See the built-in function pow(). 
+	 * Returns NULL on failure. This is the 
+	 * equivalent of the Python expression 'pow(obj1, obj2, obj3)', 
+	 * where obj3 is optional.
+	 * (quoted from https://docs.python.org/3/c-api/number.html)
+	 */
 	internal_example_class o1, o2;
 
 	if (!unpack_example_class(obj1, &o1) || !unpack_example_class(obj2, &o2)) {
@@ -285,6 +338,12 @@ example_class_pow(PyObject * obj1, PyObject * obj2, PyObject * obj3) {
 static PyObject *
 example_class_iadd(example_class *self, PyObject *obj)
 {
+	/* Returns the result of adding obj to self, 
+	 * or NULL on failure. The operation is done in-place. 
+	 * This is the equivalent of the 
+	 * Python statement 'self += obj'.
+	 * (quoted from https://docs.python.org/3/c-api/number.html)
+	 */
 	example_class * temp = (example_class*)example_class_add((PyObject*)self, obj);
 
 	if (Py_IS_NOTIMPLEMENTED(temp)) return (PyObject*)temp;
@@ -299,6 +358,12 @@ example_class_iadd(example_class *self, PyObject *obj)
 static PyObject *
 example_class_isub(example_class *self, PyObject *obj)
 {
+	/* Returns the result of subtracting obj from self,
+	 * or NULL on failure. The operation is done in-place.
+	 * This is the equivalent of the
+	 * Python statement 'self -= obj'.
+	 * (quoted from https://docs.python.org/3/c-api/number.html)
+	 */
 	example_class * temp = (example_class*)example_class_sub((PyObject*)self, obj);
 
 	if (Py_IS_NOTIMPLEMENTED(temp)) return (PyObject*)temp;
@@ -313,6 +378,12 @@ example_class_isub(example_class *self, PyObject *obj)
 static PyObject *
 example_class_imul(example_class *self, PyObject *obj)
 {
+	/* Returns the result of multiplying self by obj,
+	 * or NULL on failure. The operation is done in-place.
+	 * This is the equivalent of the
+	 * Python statement 'self *= obj'.
+	 * (quoted from https://docs.python.org/3/c-api/number.html)
+	 */
 	example_class * temp = (example_class*)example_class_mul((PyObject*)self, obj);
 
 	if (Py_IS_NOTIMPLEMENTED(temp)) return (PyObject*)temp;
@@ -325,9 +396,15 @@ example_class_imul(example_class *self, PyObject *obj)
 }
 
 static PyObject *
-example_class_idiv(example_class *self, PyObject *obj)
+example_class_itruediv(example_class *self, PyObject *obj)
 {
-	example_class * temp = (example_class*)example_class_div((PyObject*)self, obj);
+	/* Returns the result of dividing self by obj,
+	 * or NULL on failure. The operation is done in-place.
+	 * This is the equivalent of the
+	 * Python 3 statement 'self /= obj'
+	 * and the Python 2 expression 'self.__itruediv__(obj).
+	 */
+	example_class * temp = (example_class*)example_class_truediv((PyObject*)self, obj);
 
 	if (Py_IS_NOTIMPLEMENTED(temp)) return (PyObject*)temp;
 
@@ -341,6 +418,12 @@ example_class_idiv(example_class *self, PyObject *obj)
 static PyObject *
 example_class_imod(example_class *self, PyObject *obj)
 {
+	/* Returns the remainder of self divided by obj,
+	 * or NULL on failure. The operation is done in-place.
+	 * This is the equivalent of the
+	 * Python statement 'self %= obj'.
+	 * (quoted from https://docs.python.org/3/c-api/number.html)
+	 */
 	example_class * temp = (example_class*)example_class_mod((PyObject*)self, obj);
 
 	if (Py_IS_NOTIMPLEMENTED(temp)) return (PyObject*)temp;
@@ -355,6 +438,13 @@ example_class_imod(example_class *self, PyObject *obj)
 static PyObject *
 example_class_ifloordiv(example_class *self, PyObject *obj)
 {
+	/* Returns the floor of self divided by obj,
+	 * or NULL on failure. The operation is done in-place.
+	 * This is the equivalent of the
+	 * Python statement 'self //= obj'.
+	 * and the Python 2 statement 'self /= obj'
+	 * (quoted from https://docs.python.org/3/c-api/number.html)
+	 */
 	example_class * temp = (example_class*)example_class_floordiv((PyObject*)self, obj);
 
 	if (Py_IS_NOTIMPLEMENTED(temp)) return (PyObject*)temp;
@@ -370,6 +460,12 @@ example_class_ifloordiv(example_class *self, PyObject *obj)
 static PyObject *
 example_class_ipow(example_class *self, PyObject *obj1, PyObject * obj2) // obj2 is unused. It points to an invalid address!
 {
+	/* Returns the result of self to the power of obj1,
+	 * or NULL on failure. The operation is done in-place.
+	 * This is the equivalent of the
+	 * Python statement 'self **= obj'.
+	 * (quoted from https://docs.python.org/3/c-api/number.html)
+	 */
 	example_class * temp = (example_class*)example_class_pow((PyObject*)self, obj1, Py_None);
 
 	if (Py_IS_NOTIMPLEMENTED(temp)) return (PyObject*)temp;
@@ -381,20 +477,18 @@ example_class_ipow(example_class *self, PyObject *obj1, PyObject * obj2) // obj2
 	return (PyObject*)self;
 }
 
-static PyMemberDef example_class_members[] = {
-	{ "value", T_DOUBLE, offsetof(example_class, value), 0,
-	"value of example_class" },
-{ NULL }  /* Sentinel */
-};
-
 static PyObject *
 example_class_str(example_class* self)
 {
-	char * out = (char*)malloc((30) * sizeof(char));
-	snprintf(out, 30, "example_class( %12.6g )", self->value);
-	PyObject* po = PyUnicode_FromString(out);
-	free(out);
-	return po;
+	char * str_as_cstr = (char*)malloc((30) * sizeof(char));
+	snprintf(str_as_cstr, 30, "example_class( %12.6g )", self->value);
+#if PY3K
+	PyObject* out = PyUnicode_FromString(str_as_cstr);
+#else
+	PyObject* out = PyString_FromString(str_as_cstr);
+#endif
+	free(str_as_cstr);
+	return out;
 }
 
 static Py_ssize_t example_class_len(example_class * self) {
@@ -404,8 +498,6 @@ static Py_ssize_t example_class_len(example_class * self) {
 static PyObject* example_class_sq_item(example_class * self, Py_ssize_t index) {
 	switch (index) {
 	case 0:
-		return PyFloat_FromDouble(self->value);
-	case -1:
 		return PyFloat_FromDouble(self->value);
 	default:
 		PyErr_SetString(PyExc_IndexError, "index out of range");
@@ -424,9 +516,6 @@ static int example_class_sq_setitem(example_class * self, Py_ssize_t index, PyOb
 	}
 	switch (index) {
 	case 0:
-		self->value = value_as_double;
-		return 0;
-	case -1:
 		self->value = value_as_double;
 		return 0;
 	default:
@@ -552,7 +641,12 @@ static PyObject * example_class_geniter(example_class * self) {
 	return (PyObject *)rgstate;
 }
 
-static PySequenceMethods example_classSeqMethods = {
+static PySequenceMethods example_classSeqMethods = { 
+	/* PySequenceMethods, implementing the sequence protocol
+	 * references:
+	 * https://docs.python.org/3/c-api/typeobj.html#c.PySequenceMethods
+     * https://docs.python.org/3/c-api/sequence.html 
+	 */
 	(lenfunc)example_class_len, // sq_length
 	0, // sq_concat
 	0, // sq_repeat
@@ -567,6 +661,11 @@ static PySequenceMethods example_classSeqMethods = {
 
 #if PY3K
 static PyNumberMethods example_classNumMethods = {
+	/* PyNumberMethods, implementing the number protocol
+	 * references:
+	 * https://docs.python.org/3/c-api/typeobj.html#c.PyNumberMethods
+	 * https://docs.python.org/3/c-api/number.html
+	 */
 	(binaryfunc)example_class_add,
 	(binaryfunc)example_class_sub,
 	(binaryfunc)example_class_mul,
@@ -599,18 +698,23 @@ static PyNumberMethods example_classNumMethods = {
 	0, //nb_inplace_or
 
 	(binaryfunc)example_class_floordiv, //nb_floor_divide
-	(binaryfunc)example_class_div,
+	(binaryfunc)example_class_truediv,
 	(binaryfunc)example_class_ifloordiv, //nb_inplace_floor_divide
-	(binaryfunc)example_class_idiv, //nb_inplace_true_divide
+	(binaryfunc)example_class_itruediv, //nb_inplace_true_divide
 
 	0, //nb_index
 };
 #else
 static PyNumberMethods example_classNumMethods = {
+	/* PyNumberMethods, implementing the number protocol
+	 * references:
+	 * https://docs.python.org/3/c-api/typeobj.html#c.PyNumberMethods
+	 * https://docs.python.org/3/c-api/number.html
+	 */
 	(binaryfunc)example_class_add, //nb_add;
 	(binaryfunc)example_class_sub, //nb_subtract;
 	(binaryfunc)example_class_mul, //nb_multiply;
-	(binaryfunc)example_class_div, //nb_divide;
+	(binaryfunc)example_class_truediv, //nb_divide;
 	(binaryfunc)example_class_mod, //nb_remainder;
 	(binaryfunc)example_class_divmod, //nb_divmod;
 	(ternaryfunc)example_class_pow, //nb_power;
@@ -635,7 +739,7 @@ static PyNumberMethods example_classNumMethods = {
 	   (binaryfunc)example_class_iadd, //nb_inplace_add;
 	   (binaryfunc)example_class_isub, //nb_inplace_subtract;
 	   (binaryfunc)example_class_imul, //nb_inplace_multiply;
-	   (binaryfunc)example_class_idiv, //nb_inplace_divide;
+	   (binaryfunc)example_class_itruediv, //nb_inplace_divide;
 	   (binaryfunc)example_class_imod, //nb_inplace_remainder;
 	   (ternaryfunc)example_class_ipow, //nb_inplace_power;
 	   0, //nb_inplace_lshift;
@@ -646,13 +750,26 @@ static PyNumberMethods example_classNumMethods = {
 
 		  /* Added in release 2.2 */
 		  (binaryfunc)example_class_floordiv, //nb_floor_divide;
-		  (binaryfunc)example_class_div, //nb_true_divide;
+		  (binaryfunc)example_class_truediv, //nb_true_divide;
 		  (binaryfunc)example_class_ifloordiv, //nb_inplace_floor_divide;
-		  (binaryfunc)example_class_idiv, //nb_inplace_true_divide;
+		  (binaryfunc)example_class_itruediv, //nb_inplace_true_divide;
 };
 #endif
 
+static PyMemberDef example_class_members[] = {
+	/* PyMemberDef, a structure which describes an attribute of a type which corresponds to a C struct member.
+	 * reference:
+	 * https://docs.python.org/3/c-api/structures.html#c.PyMemberDef
+	 */
+	{ "value", T_DOUBLE, offsetof(example_class, value), 0, "value of example_class" },
+	{ NULL }  /* Sentinel */
+};
+
 static PyTypeObject example_classType = {
+	/* PyTypeObject, a structure that defines a new type.
+	 * reference:
+	 * https://docs.python.org/3/c-api/typeobj.html#type-objects
+	 */
 	PyVarObject_HEAD_INIT(NULL, 0)
 	"template.example_class",             /* tp_name */
 	sizeof(example_class),             /* tp_basicsize */
@@ -673,8 +790,7 @@ static PyTypeObject example_classType = {
 	0,                         /* tp_setattro */
 	0,                         /* tp_as_buffer */
 	Py_TPFLAGS_DEFAULT |
-	Py_TPFLAGS_BASETYPE |
-	Py_TPFLAGS_CHECKTYPES,   /* tp_flags */
+	Py_TPFLAGS_BASETYPE,   /* tp_flags */
 	"example_class( <example_class compatible type> )\nA simple example class holding a double value.",           /* tp_doc */
 	0,                         /* tp_traverse */
 	0,                         /* tp_clear */
@@ -737,17 +853,61 @@ static PyTypeObject example_classIterType = {
 };
 
 static PyObject*
-test(PyObject* o) {
-	return o;
+testNO(PyObject* self, PyObject* obj) {
+	Py_RETURN_NONE;
+}
+
+static PyObject*
+testO(PyObject* self, PyObject* obj) {
+	return obj;
+}
+
+static PyObject*
+testVA(PyObject* self, PyObject* args) {
+	PyObject* obj1;
+	PyObject* obj2 = NULL;
+	if (PyArg_ParseTuple(args, "O|O", &obj1, &obj2)) {
+		if (obj2 == NULL) {
+			return obj1;
+		}
+		return PyNumber_Add(obj1, obj2);
+	}
+	if (PyArg_UnpackTuple(args, "testVA", 1, 2, &obj1, &obj2)) {
+		if (obj2 == NULL) {
+			return obj1;
+		}
+		return PyNumber_Add(obj1, obj2);
+	}
+}
+
+static PyObject*
+testVK(PyObject* self, PyObject* args, PyObject* kwargs) {
+	static char* kwlist[] = { "o1", "o2", NULL };
+	PyObject* obj1;
+	PyObject* obj2 = NULL;
+	if (PyArg_ParseTupleAndKeywords(args, kwargs, "O|O", kwlist, &obj1, &obj2)) {
+		if (obj2 == NULL) {
+			return obj1;
+		}
+		return PyNumber_Add(obj1, obj2);
+	}
 }
 
 static PyMethodDef templatemethods[] = {
-	{"test", (PyCFunction)test, METH_O, ""},
+	/* PyMethodDef, a structure used to describe a method of an extension type.
+	 * reference:
+	 * https://docs.python.org/3/c-api/structures.html#c.PyMethodDef
+	 */
+	{ "testNO", (PyCFunction)testNO, METH_NOARGS, "A test function expecting no arguments" },
+	{ "testO", (PyCFunction)testO, METH_O, "A test function expecting a single argument"},
+	{ "testVA", (PyCFunction)testVA, METH_VARARGS, "A test function expecting a list of arguments" },
+	{ "testVK", (PyCFunctionWithKeywords)testVK, METH_VARARGS | METH_KEYWORDS, "A test function expecting a list of arguments and keywords" },
 	{ NULL, NULL, 0, NULL }
 };
 
 #if PY3K
 static PyModuleDef templatemodule = {
+	
     PyModuleDef_HEAD_INIT,
     "template",
     "A simple template for Python's C-API",
@@ -780,7 +940,7 @@ inittemplate(void)
 #if PY3K
     m = PyModule_Create(&templatemodule);
 #else
-	m = Py_InitModule3("template", templatemethods, "Features that implement in Python the GLSL specification as closely as necessary.");
+	m = Py_InitModule3("template", templatemethods, "A simple template for Python's C-API");
 #endif
     if (m == NULL)
 #if PY3K

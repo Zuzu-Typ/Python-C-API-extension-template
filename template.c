@@ -878,6 +878,7 @@ testVA(PyObject* self, PyObject* args) {
 		}
 		return PyNumber_Add(obj1, obj2);
 	}
+	Py_RETURN_NONE;
 }
 
 static PyObject*
@@ -891,6 +892,7 @@ testVK(PyObject* self, PyObject* args, PyObject* kwargs) {
 		}
 		return PyNumber_Add(obj1, obj2);
 	}
+	Py_RETURN_NONE;
 }
 
 static PyMethodDef templatemethods[] = {

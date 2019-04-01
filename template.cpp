@@ -8,43 +8,97 @@ double pi; // later we import this value from the math module
 
 #if PY3K
 #define Py_TPFLAGS_CHECKTYPES 0
-#define PyNumeric_Check(op) (PyLong_Check(op) || PyFloat_Check(op) || PyBool_Check(op))
 #endif
 
 #if !PY3K
 #define Py_RETURN_NOTIMPLEMENTED return Py_INCREF(Py_NotImplemented), Py_NotImplemented
 #define PyLong_AS_LONG(op) PyLong_AsLong(op)
-#define PyNumeric_Check(op) (PyLong_Check(op) || PyInt_Check(op) || PyFloat_Check(op) || PyBool_Check(op))
+#define PyExtNumber_Check(op) (PyLong_Check(op) || PyInt_Check(op) || PyFloat_Check(op) || PyBool_Check(op))
 #endif
+bool PyExtNumber_Check(PyObject* arg) {
+#if PY3K
+	if (PyFloat_Check(arg) || PyLong_Check(arg) || PyBool_Check(arg)) {
+#else
+	if (PyFloat_Check(arg) || PyInt_Check(arg) || PyLong_Check(arg) ||  PyBool_Check(arg)) {
+#endif
+		return true;
+	}
+	if (arg->ob_type->tp_as_number != NULL && arg->ob_type->tp_as_number->nb_float != NULL) {
+		PyObject* temp = PyNumber_Float(arg);
+		if (temp != NULL) {
+			Py_DECREF(temp);
+			return true;
+		}
+		PyErr_Clear();
+	}
+	return false;
+}
+
+double PyExtNumber_AsDouble(PyObject* arg) {
+	if (PyFloat_Check(arg)) {
+		return PyFloat_AS_DOUBLE(arg);
+	}
+#if !PY3K
+	if (PyInt_Check(arg)) {
+		return (double)PyInt_AS_LONG(arg);
+	}
+#endif
+	if (PyLong_Check(arg)) {
+		return (double)PyLong_AsDouble(arg);
+	}
+	if (PyBool_Check(arg)) {
+		return (arg == Py_True) ? 1.0 : 0.0;
+	}
+	PyObject* arg_as_float = PyNumber_Float(arg);
+	double out = PyFloat_AS_DOUBLE(arg_as_float);
+	Py_DECREF(arg_as_float);
+	return out;
+}
+
+long PyExtNumber_AsLong(PyObject* arg) {
+#if !PY3K
+	if (PyInt_Check(arg)) {
+		return PyInt_AS_LONG(arg);
+	}
+#endif
+	if (PyLong_Check(arg)) {
+		return PyLong_AS_LONG(arg);
+	}
+	if (PyFloat_Check(arg)) {
+		return (long)PyFloat_AS_DOUBLE(arg);
+	}
+	if (PyBool_Check(arg)) {
+		return (arg == Py_True) ? 1 : 0;
+	}
+	PyObject* arg_as_long = PyNumber_Long(arg);
+	long out = PyLong_AS_LONG(arg_as_long);
+	Py_DECREF(arg_as_long);
+	return out;
+}
+
+float PyExtNumber_AsFloat(PyObject* arg) {
+	if (PyFloat_Check(arg)) {
+		return (float)PyFloat_AS_DOUBLE(arg);
+	}
+#if !PY3K
+	if (PyInt_Check(arg)) {
+		return (float)PyInt_AS_LONG(arg);
+	}
+#endif
+	if (PyLong_Check(arg)) {
+		return (float)PyLong_AS_LONG(arg);
+	}
+	if (PyBool_Check(arg)) {
+		return (arg == Py_True) ? 1.f : 0.f;
+	}
+	PyObject* arg_as_float = PyNumber_Float(arg);
+	float out = (float)PyFloat_AS_DOUBLE(arg_as_float);
+	Py_DECREF(arg_as_float);
+	return out;
+}
+
 
 #define Py_IS_NOTIMPLEMENTED(op) (op == NULL || (PyObject*)op == Py_NotImplemented) // find out if op is NULL or NotImplemented
-
-static double PyNumeric_as_double(PyObject * op) {
-	double out;
-	if (PyFloat_Check(op)) {
-		out = PyFloat_AS_DOUBLE(op);
-		return out;
-	}
-	else if (PyLong_Check(op)) {
-		out = (double)PyLong_AS_LONG(op);
-		return out;
-	}
-#if !PY3K
-	else if (PyInt_Check(op)) {
-		out = (double)PyInt_AS_LONG(op);
-		return out;
-	}
-#endif
-	else {
-		out = (PyObject_IsTrue(op)) ? 1 : 0;
-		return out;
-	}
-}
-#if !PY3K
-#define PyNumeric_AS_DOUBLE(op) ((PyFloat_Check(op)) ? PyFloat_AS_DOUBLE(op) : (PyLong_Check(op)) ? (double)PyLong_AS_LONG(op) : (PyInt_Check(op)) ? (double)PyInt_AS_LONG(op) : (PyObject_IsTrue(op)) ? 1 : 0)
-#else
-#define PyNumeric_AS_DOUBLE(op) ((PyFloat_Check(op)) ? PyFloat_AS_DOUBLE(op) : (PyLong_Check(op)) ? (double)PyLong_AS_LONG(op) : (PyObject_IsTrue(op)) ? 1 : 0)
-#endif
 
 #define PyType_AS_CSTRING(op) op->ob_type->tp_name
 
@@ -58,10 +112,6 @@ static char * attr_name_to_cstr(PyObject * name) {
 	return PyString_AsString(name);
 #endif
 }
-
-// example_class
-static PyTypeObject example_classType;
-static PyTypeObject example_classIterType;
 
 typedef struct {
 	PyObject_HEAD
@@ -78,6 +128,253 @@ typedef struct {
 	double value;
 } internal_example_class;
 
+static Py_ssize_t example_class_len(example_class * self);
+static PyObject* example_class_sq_item(example_class * self, Py_ssize_t index);
+static int example_class_sq_setitem(example_class * self, Py_ssize_t index, PyObject * value);
+static int example_class_contains(example_class * self, PyObject * value);
+
+static PyObject * example_class_add(PyObject *obj1, PyObject *obj2);
+static PyObject * example_class_sub(PyObject *obj1, PyObject *obj2);
+static PyObject * example_class_mul(PyObject *obj1, PyObject *obj2);
+static PyObject * example_class_mod(PyObject *obj1, PyObject *obj2);
+static PyObject * example_class_divmod(PyObject *obj1, PyObject *obj2);
+static PyObject * example_class_pow(PyObject * obj1, PyObject * obj2, PyObject * obj3);
+static PyObject * example_class_neg(example_class *obj);
+static PyObject * example_class_pos(example_class *obj);
+static PyObject * example_class_abs(example_class *obj);
+static PyObject * example_class_iadd(example_class* self, PyObject *obj);
+static PyObject * example_class_isub(example_class* self, PyObject *obj);
+static PyObject * example_class_imul(example_class* self, PyObject *obj);
+static PyObject * example_class_imod(example_class* self, PyObject *obj);
+static PyObject * example_class_ipow(example_class* self, PyObject * obj2, PyObject * obj3);
+static PyObject * example_class_floordiv(PyObject *obj1, PyObject *obj2);
+static PyObject * example_class_truediv(PyObject *obj1, PyObject *obj2);
+static PyObject * example_class_ifloordiv(example_class* self, PyObject *obj);
+static PyObject * example_class_itruediv(example_class* self, PyObject *obj);
+
+static void example_class_dealloc(example_class* self);
+static PyObject* example_class_str(example_class* self);
+static PyObject* example_class_getattr(PyObject* obj, PyObject* name);
+static PyObject* example_class_richcompare(example_class* self, PyObject* other, int comp_type);
+static PyObject* example_class_geniter(example_class* self);
+static int example_class_init(example_class *self, PyObject *args, PyObject *kwds);
+static PyObject* example_class_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
+
+static void example_classIter_dealloc(example_classIter *rgstate);
+static PyObject* example_classIter_next(example_classIter *rgstate);
+static PyObject* example_classIter_new(PyTypeObject *type, PyObject *args, PyObject *kwargs);
+
+static PySequenceMethods example_classSeqMethods = {
+	/* PySequenceMethods, implementing the sequence protocol
+	 * references:
+	 * https://docs.python.org/3/c-api/typeobj.html#c.PySequenceMethods
+	 * https://docs.python.org/3/c-api/sequence.html
+	 */
+	(lenfunc)example_class_len, // sq_length
+	0, // sq_concat
+	0, // sq_repeat
+	(ssizeargfunc)example_class_sq_item, // sq_item
+	0,
+	(ssizeobjargproc)example_class_sq_setitem, // sq_ass_item
+	0,
+	(objobjproc)example_class_contains, // sq_contains
+	0, // sq_inplace_concat
+	0, // sq_inplace_repeat
+};
+
+#if PY3K
+static PyNumberMethods example_classNumMethods = {
+	/* PyNumberMethods, implementing the number protocol
+	 * references:
+	 * https://docs.python.org/3/c-api/typeobj.html#c.PyNumberMethods
+	 * https://docs.python.org/3/c-api/number.html
+	 */
+	(binaryfunc)example_class_add,
+	(binaryfunc)example_class_sub,
+	(binaryfunc)example_class_mul,
+	(binaryfunc)example_class_mod, //nb_remainder
+	(binaryfunc)example_class_divmod, //nb_divmod
+	(ternaryfunc)example_class_pow, //nb_power
+	(unaryfunc)example_class_neg, //nb_negative
+	(unaryfunc)example_class_pos, //nb_positive
+	(unaryfunc)example_class_abs, //nb_absolute
+	0, //nb_bool
+	0, //nb_invert
+	0, //nb_lshift
+	0, //nb_rshift
+	0, //nb_and
+	0, //nb_xor
+	0, //nb_or
+	0, //nb_int
+	0, //nb_reserved
+	0, //nb_float
+
+	(binaryfunc)example_class_iadd, //nb_inplace_add
+	(binaryfunc)example_class_isub, //nb_inplace_subtract
+	(binaryfunc)example_class_imul, //nb_inplace_multiply
+	(binaryfunc)example_class_imod, //nb_inplace_remainder
+	(ternaryfunc)example_class_ipow, //nb_inplace_power
+	0, //nb_inplace_lshift
+	0, //nb_inplace_rshift
+	0, //nb_inplace_and
+	0, //nb_inplace_xor
+	0, //nb_inplace_or
+
+	(binaryfunc)example_class_floordiv, //nb_floor_divide
+	(binaryfunc)example_class_truediv,
+	(binaryfunc)example_class_ifloordiv, //nb_inplace_floor_divide
+	(binaryfunc)example_class_itruediv, //nb_inplace_true_divide
+
+	0, //nb_index
+};
+#else
+static PyNumberMethods example_classNumMethods = {
+	/* PyNumberMethods, implementing the number protocol
+	 * references:
+	 * https://docs.python.org/3/c-api/typeobj.html#c.PyNumberMethods
+	 * https://docs.python.org/3/c-api/number.html
+	 */
+	(binaryfunc)example_class_add, //nb_add;
+	(binaryfunc)example_class_sub, //nb_subtract;
+	(binaryfunc)example_class_mul, //nb_multiply;
+	(binaryfunc)example_class_truediv, //nb_divide;
+	(binaryfunc)example_class_mod, //nb_remainder;
+	(binaryfunc)example_class_divmod, //nb_divmod;
+	(ternaryfunc)example_class_pow, //nb_power;
+	(unaryfunc)example_class_neg, //nb_negative;
+	(unaryfunc)example_class_pos, //nb_positive;
+	(unaryfunc)example_class_abs, //nb_absolute;
+	0, //nb_nonzero;       /* Used by PyObject_IsTrue */
+	0, //nb_invert;
+	0, //nb_lshift;
+	0, //nb_rshift;
+	0, //nb_and;
+	0, //nb_xor;
+	0, //nb_or;
+	0, //nb_coerce;       /* Used by the coerce() function */
+	0, //nb_int;
+	0, //nb_long;
+	0, //nb_float;
+	0, //nb_oct;
+	0, //nb_hex;
+
+	   /* Added in release 2.0 */
+	   (binaryfunc)example_class_iadd, //nb_inplace_add;
+	   (binaryfunc)example_class_isub, //nb_inplace_subtract;
+	   (binaryfunc)example_class_imul, //nb_inplace_multiply;
+	   (binaryfunc)example_class_itruediv, //nb_inplace_divide;
+	   (binaryfunc)example_class_imod, //nb_inplace_remainder;
+	   (ternaryfunc)example_class_ipow, //nb_inplace_power;
+	   0, //nb_inplace_lshift;
+	   0, //nb_inplace_rshift;
+	   0, //nb_inplace_and;
+	   0, //nb_inplace_xor;
+	   0, //nb_inplace_or;
+
+		  /* Added in release 2.2 */
+		  (binaryfunc)example_class_floordiv, //nb_floor_divide;
+		  (binaryfunc)example_class_truediv, //nb_true_divide;
+		  (binaryfunc)example_class_ifloordiv, //nb_inplace_floor_divide;
+		  (binaryfunc)example_class_itruediv, //nb_inplace_true_divide;
+};
+#endif
+
+// example_class
+static PyMemberDef example_class_members[] = {
+	/* PyMemberDef, a structure which describes an attribute of a type which corresponds to a C struct member.
+	 * reference:
+	 * https://docs.python.org/3/c-api/structures.html#c.PyMemberDef
+	 */
+	{ "value", T_DOUBLE, offsetof(example_class, value), 0, "value of example_class" },
+	{ NULL }  /* Sentinel */
+};
+
+static PyTypeObject example_classType = {
+	/* PyTypeObject, a structure that defines a new type.
+	 * reference:
+	 * https://docs.python.org/3/c-api/typeobj.html#type-objects
+	 */
+	PyVarObject_HEAD_INIT(NULL, 0)
+	"template.example_class",             /* tp_name */
+	sizeof(example_class),             /* tp_basicsize */
+	0,                         /* tp_itemsize */
+	(destructor)example_class_dealloc, /* tp_dealloc */
+	0,                         /* tp_print */
+	0,                         /* tp_getattr */
+	0,                         /* tp_setattr */
+	0,                         /* tp_reserved */
+	(reprfunc)example_class_str,                         /* tp_repr */
+	&example_classNumMethods,             /* tp_as_number */
+	&example_classSeqMethods,                         /* tp_as_sequence */
+	0,                         /* tp_as_mapping */
+	0,                         /* tp_hash  */
+	0,                         /* tp_call */
+	(reprfunc)example_class_str,                         /* tp_str */
+	(getattrofunc)example_class_getattr,                         /* tp_getattro */
+	0,                         /* tp_setattro */
+	0,                         /* tp_as_buffer */
+	Py_TPFLAGS_DEFAULT |
+	Py_TPFLAGS_BASETYPE,   /* tp_flags */
+	"example_class( <example_class compatible type> )\nA simple example class holding a double value.",           /* tp_doc */
+	0,                         /* tp_traverse */
+	0,                         /* tp_clear */
+	(richcmpfunc)example_class_richcompare,                         /* tp_richcompare */
+	0,                         /* tp_weaklistoffset */
+	(getiterfunc)example_class_geniter,                         /* tp_iter */
+	0,                         /* tp_iternext */
+	0,             /* tp_methods */
+	example_class_members,             /* tp_members */
+	0,           			/* tp_getset */
+	0,                         /* tp_base */
+	0,                         /* tp_dict */
+	0,                         /* tp_descr_get */
+	0,                         /* tp_descr_set */
+	0,                         /* tp_dictoffset */
+	(initproc)example_class_init,      /* tp_init */
+	0,                         /* tp_alloc */
+	(newfunc)example_class_new,                 /* tp_new */
+};
+
+static PyTypeObject example_classIterType = {
+	PyVarObject_HEAD_INIT(NULL, 0)
+	"example_classIter",             /* tp_name */
+	sizeof(example_classIter),             /* tp_basicsize */
+	0,                         /* tp_itemsize */
+	(destructor)example_classIter_dealloc, /* tp_dealloc */
+	0,                         /* tp_print */
+	0,                         /* tp_getattr */
+	0,                         /* tp_setattr */
+	0,                         /* tp_reserved */
+	0,                         /* tp_repr */
+	0,             /* tp_as_number */
+	0,                         /* tp_as_sequence */
+	0,                         /* tp_as_mapping */
+	0,                         /* tp_hash  */
+	0,                         /* tp_call */
+	0,                         /* tp_str */
+	0,                         /* tp_getattro */
+	0,                         /* tp_setattro */
+	0,                         /* tp_as_buffer */
+	Py_TPFLAGS_DEFAULT,   /* tp_flags */
+	"example_class iterator",           /* tp_doc */
+	0,                         /* tp_traverse */
+	0,                         /* tp_clear */
+	0,                         /* tp_richcompare */
+	0,                         /* tp_weaklistoffset */
+	0,                         /* tp_iter */
+	(iternextfunc)example_classIter_next,                         /* tp_iternext */
+	0,             /* tp_methods */
+	0,             /* tp_members */
+	0,           			/* tp_getset */
+	0,                         /* tp_base */
+	0,                         /* tp_dict */
+	0,                         /* tp_descr_get */
+	0,                         /* tp_descr_set */
+	0,                         /* tp_dictoffset */
+	0,      /* tp_init */
+	0,                         /* tp_alloc */
+	(newfunc)example_classIter_new,                 /* tp_new */
+};
 
 static PyObject* pack_example_class(double value) {
 	example_class* out = (example_class*)example_classType.tp_alloc(&example_classType, 0);
@@ -94,8 +391,8 @@ static bool unpack_example_class(PyObject * op, internal_example_class* out) {
 		out->value = ((example_class*)op)->value;
 		return true;
 	}
-	if (PyNumeric_Check(op)) {
-		out->value = PyNumeric_as_double(op);
+	if (PyExtNumber_Check(op)) {
+		out->value = PyExtNumber_AsDouble(op);
 		return true;
 	}
 	return false;
@@ -133,8 +430,8 @@ example_class_init(example_class *self, PyObject *args, PyObject *kwargs)
 		if (arg1 == NULL) {
 			return 0;
 		}
-		if (PyNumeric_Check(arg1)) {
-			self->value = PyNumeric_as_double(arg1);
+		if (PyExtNumber_Check(arg1)) {
+			self->value = PyExtNumber_AsDouble(arg1);
 			return 0;
 		}
 	}
@@ -507,8 +804,8 @@ static PyObject* example_class_sq_item(example_class * self, Py_ssize_t index) {
 
 static int example_class_sq_setitem(example_class * self, Py_ssize_t index, PyObject * value) {
 	double value_as_double;
-	if (PyNumeric_Check(value)) {
-		value_as_double = PyNumeric_as_double(value);
+	if (PyExtNumber_Check(value)) {
+		value_as_double = PyExtNumber_AsDouble(value);
 	}
 	else {
 		Py_RAISE_TYPEERROR_O("must be a real number, not ", value);
@@ -526,8 +823,8 @@ static int example_class_sq_setitem(example_class * self, Py_ssize_t index, PyOb
 
 static int example_class_contains(example_class * self, PyObject * value) {
 	double d;
-	if (PyNumeric_Check(value)) {
-		d = PyNumeric_as_double(value);
+	if (PyExtNumber_Check(value)) {
+		d = PyExtNumber_AsDouble(value);
 		return (int)(d == self->value);
 	}
 	return 0;
@@ -641,217 +938,6 @@ static PyObject * example_class_geniter(example_class * self) {
 	return (PyObject *)rgstate;
 }
 
-static PySequenceMethods example_classSeqMethods = { 
-	/* PySequenceMethods, implementing the sequence protocol
-	 * references:
-	 * https://docs.python.org/3/c-api/typeobj.html#c.PySequenceMethods
-     * https://docs.python.org/3/c-api/sequence.html 
-	 */
-	(lenfunc)example_class_len, // sq_length
-	0, // sq_concat
-	0, // sq_repeat
-	(ssizeargfunc)example_class_sq_item, // sq_item
-	0,
-	(ssizeobjargproc)example_class_sq_setitem, // sq_ass_item
-	0,
-	(objobjproc)example_class_contains, // sq_contains
-	0, // sq_inplace_concat
-	0, // sq_inplace_repeat
-};
-
-#if PY3K
-static PyNumberMethods example_classNumMethods = {
-	/* PyNumberMethods, implementing the number protocol
-	 * references:
-	 * https://docs.python.org/3/c-api/typeobj.html#c.PyNumberMethods
-	 * https://docs.python.org/3/c-api/number.html
-	 */
-	(binaryfunc)example_class_add,
-	(binaryfunc)example_class_sub,
-	(binaryfunc)example_class_mul,
-	(binaryfunc)example_class_mod, //nb_remainder
-	(binaryfunc)example_class_divmod, //nb_divmod
-	(ternaryfunc)example_class_pow, //nb_power
-	(unaryfunc)example_class_neg, //nb_negative
-	(unaryfunc)example_class_pos, //nb_positive
-	(unaryfunc)example_class_abs, //nb_absolute
-	0, //nb_bool
-	0, //nb_invert
-	0, //nb_lshift
-	0, //nb_rshift
-	0, //nb_and
-	0, //nb_xor
-	0, //nb_or
-	0, //nb_int
-	0, //nb_reserved
-	0, //nb_float
-
-	(binaryfunc)example_class_iadd, //nb_inplace_add
-	(binaryfunc)example_class_isub, //nb_inplace_subtract
-	(binaryfunc)example_class_imul, //nb_inplace_multiply
-	(binaryfunc)example_class_imod, //nb_inplace_remainder
-	(ternaryfunc)example_class_ipow, //nb_inplace_power
-	0, //nb_inplace_lshift
-	0, //nb_inplace_rshift
-	0, //nb_inplace_and
-	0, //nb_inplace_xor
-	0, //nb_inplace_or
-
-	(binaryfunc)example_class_floordiv, //nb_floor_divide
-	(binaryfunc)example_class_truediv,
-	(binaryfunc)example_class_ifloordiv, //nb_inplace_floor_divide
-	(binaryfunc)example_class_itruediv, //nb_inplace_true_divide
-
-	0, //nb_index
-};
-#else
-static PyNumberMethods example_classNumMethods = {
-	/* PyNumberMethods, implementing the number protocol
-	 * references:
-	 * https://docs.python.org/3/c-api/typeobj.html#c.PyNumberMethods
-	 * https://docs.python.org/3/c-api/number.html
-	 */
-	(binaryfunc)example_class_add, //nb_add;
-	(binaryfunc)example_class_sub, //nb_subtract;
-	(binaryfunc)example_class_mul, //nb_multiply;
-	(binaryfunc)example_class_truediv, //nb_divide;
-	(binaryfunc)example_class_mod, //nb_remainder;
-	(binaryfunc)example_class_divmod, //nb_divmod;
-	(ternaryfunc)example_class_pow, //nb_power;
-	(unaryfunc)example_class_neg, //nb_negative;
-	(unaryfunc)example_class_pos, //nb_positive;
-	(unaryfunc)example_class_abs, //nb_absolute;
-	0, //nb_nonzero;       /* Used by PyObject_IsTrue */
-	0, //nb_invert;
-	0, //nb_lshift;
-	0, //nb_rshift;
-	0, //nb_and;
-	0, //nb_xor;
-	0, //nb_or;
-	0, //nb_coerce;       /* Used by the coerce() function */
-	0, //nb_int;
-	0, //nb_long;
-	0, //nb_float;
-	0, //nb_oct;
-	0, //nb_hex;
-
-	   /* Added in release 2.0 */
-	   (binaryfunc)example_class_iadd, //nb_inplace_add;
-	   (binaryfunc)example_class_isub, //nb_inplace_subtract;
-	   (binaryfunc)example_class_imul, //nb_inplace_multiply;
-	   (binaryfunc)example_class_itruediv, //nb_inplace_divide;
-	   (binaryfunc)example_class_imod, //nb_inplace_remainder;
-	   (ternaryfunc)example_class_ipow, //nb_inplace_power;
-	   0, //nb_inplace_lshift;
-	   0, //nb_inplace_rshift;
-	   0, //nb_inplace_and;
-	   0, //nb_inplace_xor;
-	   0, //nb_inplace_or;
-
-		  /* Added in release 2.2 */
-		  (binaryfunc)example_class_floordiv, //nb_floor_divide;
-		  (binaryfunc)example_class_truediv, //nb_true_divide;
-		  (binaryfunc)example_class_ifloordiv, //nb_inplace_floor_divide;
-		  (binaryfunc)example_class_itruediv, //nb_inplace_true_divide;
-};
-#endif
-
-static PyMemberDef example_class_members[] = {
-	/* PyMemberDef, a structure which describes an attribute of a type which corresponds to a C struct member.
-	 * reference:
-	 * https://docs.python.org/3/c-api/structures.html#c.PyMemberDef
-	 */
-	{ "value", T_DOUBLE, offsetof(example_class, value), 0, "value of example_class" },
-	{ NULL }  /* Sentinel */
-};
-
-static PyTypeObject example_classType = {
-	/* PyTypeObject, a structure that defines a new type.
-	 * reference:
-	 * https://docs.python.org/3/c-api/typeobj.html#type-objects
-	 */
-	PyVarObject_HEAD_INIT(NULL, 0)
-	"template.example_class",             /* tp_name */
-	sizeof(example_class),             /* tp_basicsize */
-	0,                         /* tp_itemsize */
-	(destructor)example_class_dealloc, /* tp_dealloc */
-	0,                         /* tp_print */
-	0,                         /* tp_getattr */
-	0,                         /* tp_setattr */
-	0,                         /* tp_reserved */
-	(reprfunc)example_class_str,                         /* tp_repr */
-	&example_classNumMethods,             /* tp_as_number */
-	&example_classSeqMethods,                         /* tp_as_sequence */
-	0,                         /* tp_as_mapping */
-	0,                         /* tp_hash  */
-	0,                         /* tp_call */
-	(reprfunc)example_class_str,                         /* tp_str */
-	(getattrofunc)example_class_getattr,                         /* tp_getattro */
-	0,                         /* tp_setattro */
-	0,                         /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT |
-	Py_TPFLAGS_BASETYPE,   /* tp_flags */
-	"example_class( <example_class compatible type> )\nA simple example class holding a double value.",           /* tp_doc */
-	0,                         /* tp_traverse */
-	0,                         /* tp_clear */
-	(richcmpfunc)example_class_richcompare,                         /* tp_richcompare */
-	0,                         /* tp_weaklistoffset */
-	(getiterfunc)example_class_geniter,                         /* tp_iter */
-	0,                         /* tp_iternext */
-	0,             /* tp_methods */
-	example_class_members,             /* tp_members */
-	0,           			/* tp_getset */
-	0,                         /* tp_base */
-	0,                         /* tp_dict */
-	0,                         /* tp_descr_get */
-	0,                         /* tp_descr_set */
-	0,                         /* tp_dictoffset */
-	(initproc)example_class_init,      /* tp_init */
-	0,                         /* tp_alloc */
-	(newfunc)example_class_new,                 /* tp_new */
-};
-
-static PyTypeObject example_classIterType = {
-	PyVarObject_HEAD_INIT(NULL, 0)
-	"example_classIter",             /* tp_name */
-	sizeof(example_classIter),             /* tp_basicsize */
-	0,                         /* tp_itemsize */
-	(destructor)example_classIter_dealloc, /* tp_dealloc */
-	0,                         /* tp_print */
-	0,                         /* tp_getattr */
-	0,                         /* tp_setattr */
-	0,                         /* tp_reserved */
-	0,                         /* tp_repr */
-	0,             /* tp_as_number */
-	0,                         /* tp_as_sequence */
-	0,                         /* tp_as_mapping */
-	0,                         /* tp_hash  */
-	0,                         /* tp_call */
-	0,                         /* tp_str */
-	0,                         /* tp_getattro */
-	0,                         /* tp_setattro */
-	0,                         /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,   /* tp_flags */
-	"example_class iterator",           /* tp_doc */
-	0,                         /* tp_traverse */
-	0,                         /* tp_clear */
-	0,                         /* tp_richcompare */
-	0,                         /* tp_weaklistoffset */
-	0,                         /* tp_iter */
-	(iternextfunc)example_classIter_next,                         /* tp_iternext */
-	0,             /* tp_methods */
-	0,             /* tp_members */
-	0,           			/* tp_getset */
-	0,                         /* tp_base */
-	0,                         /* tp_dict */
-	0,                         /* tp_descr_get */
-	0,                         /* tp_descr_set */
-	0,                         /* tp_dictoffset */
-	0,      /* tp_init */
-	0,                         /* tp_alloc */
-	(newfunc)example_classIter_new,                 /* tp_new */
-};
-
 static PyObject*
 testNO(PyObject* self, PyObject* obj) {
 	Py_RETURN_NONE;
@@ -895,66 +981,69 @@ testVK(PyObject* self, PyObject* args, PyObject* kwargs) {
 	Py_RETURN_NONE;
 }
 
-static PyMethodDef templatemethods[] = {
-	/* PyMethodDef, a structure used to describe a method of an extension type.
-	 * reference:
-	 * https://docs.python.org/3/c-api/structures.html#c.PyMethodDef
-	 */
-	{ "testNO", (PyCFunction)testNO, METH_NOARGS, "A test function expecting no arguments" },
-	{ "testO", (PyCFunction)testO, METH_O, "A test function expecting a single argument"},
-	{ "testVA", (PyCFunction)testVA, METH_VARARGS, "A test function expecting a list of arguments" },
-	{ "testVK", (PyCFunctionWithKeywords)testVK, METH_VARARGS | METH_KEYWORDS, "A test function expecting a list of arguments and keywords" },
-	{ NULL, NULL, 0, NULL }
-};
-
-#if PY3K
-static PyModuleDef templatemodule = {
-	
-    PyModuleDef_HEAD_INIT,
-    "template",
-    "A simple template for Python's C-API",
-    -1,
-	templatemethods, NULL, NULL, NULL, NULL
-};
-#endif
-
-PyMODINIT_FUNC
-#if PY3K
-PyInit_template(void)
-#else
-inittemplate(void)
-#endif
+extern "C" 
 {
-	PyObject* mainmod = PyImport_AddModule("__main__");
-	PyObject* maindict = PyModule_GetDict(mainmod);
+	static PyMethodDef templatemethods[] = {
+		/* PyMethodDef, a structure used to describe a method of an extension type.
+		 * reference:
+		 * https://docs.python.org/3/c-api/structures.html#c.PyMethodDef
+		 */
+		{ "testNO", (PyCFunction)testNO, METH_NOARGS, "A test function expecting no arguments" },
+		{ "testO", (PyCFunction)testO, METH_O, "A test function expecting a single argument"},
+		{ "testVA", (PyCFunction)testVA, METH_VARARGS, "A test function expecting a list of arguments" },
+		{ "testVK", (PyCFunction)testVK, METH_VARARGS | METH_KEYWORDS, "A test function expecting a list of arguments and keywords" },
+		{ NULL, NULL, 0, NULL }
+	};
 
-	pi = PyFloat_AS_DOUBLE(PyObject_GetAttr(PyImport_ImportModuleEx("math", maindict, maindict, NULL), PyUnicode_FromString("pi")));
-	
-    PyObject* m;
-
-	if (PyType_Ready(&example_classType) < 0 || PyType_Ready(&example_classIterType) < 0)
 #if PY3K
-		return NULL;
+	static PyModuleDef templatemodule = {
+
+		PyModuleDef_HEAD_INIT,
+		"template",
+		"A simple template for Python's C-API",
+		-1,
+		templatemethods, NULL, NULL, NULL, NULL
+	};
+#endif
+
+	PyMODINIT_FUNC
+#if PY3K
+		PyInit_template(void)
 #else
-		return;
+		inittemplate(void)
 #endif
+	{
+		PyObject* mainmod = PyImport_AddModule("__main__");
+		PyObject* maindict = PyModule_GetDict(mainmod);
 
+		pi = PyFloat_AS_DOUBLE(PyObject_GetAttr(PyImport_ImportModuleEx("math", maindict, maindict, NULL), PyUnicode_FromString("pi")));
+
+		PyObject* m;
+
+		if (PyType_Ready(&example_classType) < 0 || PyType_Ready(&example_classIterType) < 0)
 #if PY3K
-    m = PyModule_Create(&templatemodule);
+			return NULL;
 #else
-	m = Py_InitModule3("template", templatemethods, "A simple template for Python's C-API");
+			return;
 #endif
-    if (m == NULL)
+
 #if PY3K
-		return NULL;
+		m = PyModule_Create(&templatemodule);
 #else
-		return;
+		m = Py_InitModule3("template", templatemethods, "A simple template for Python's C-API");
+#endif
+		if (m == NULL)
+#if PY3K
+			return NULL;
+#else
+			return;
 #endif
 
-	Py_INCREF(&example_classType);
-	PyModule_AddObject(m, "example_class", (PyObject *)&example_classType);
+		Py_INCREF(&example_classType);
+		PyModule_AddObject(m, "example_class", (PyObject *)&example_classType);
 
 #if PY3K
-    return m;
+		return m;
 #endif
+	}
 }

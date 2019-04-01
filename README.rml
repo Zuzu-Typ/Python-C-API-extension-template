@@ -1,12 +1,12 @@
-[title]Python C extension template[/]
+[title]Python C++ extension template[/]
 [subtitle]A template for a Python C-API based extension[/]
-[b]Why[/] would you want to have a [b]Python C-extension[/] in the first place?
+[b]Why[/] would you want to have a [b]Python C++-extension[/] in the first place?
 The answer is quite simple: [b]Performance[/].
-Although you can achieve improved performance using [url=http://cython.org/]Cython[/], you can never beat [b]C level performance[/].
+Although you can achieve improved performance using [url=http://cython.org/]Cython[/], you can never beat [b]C/C++ level performance[/].
 
 [s1]About this template[/]
 [s2]Introduction[/]
-This template provides a very basic Python extension written in C.
+This template provides a very basic Python extension written in C/C++.
 The extension module "[i]template[/]" contains a function "[i]test[/]" and a class "[i]example_class[/]".
 The "[i]example_class[/]" has a single member "[i]value[/]" (of type double => float),  and supports a lot of operations.
 It also shows how to import a module ("math.pi" in this case).
